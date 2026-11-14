@@ -1,0 +1,1167 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GBoS GEOAI | Groundwater Potential Intelligence</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+:root{
+ --bg:#081321;--panel:#101f30;--panel2:#14283b;
+ --line:#263c50;--text:#eaf2f8;--muted:#91a7b9;
+ --accent:#35c5a1;--blue:#42a5f5;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+ font-family:Arial,Helvetica,sans-serif}
+header{height:66px;padding:12px 22px;border-bottom:1px solid var(--line);
+ display:flex;align-items:center;justify-content:space-between;background:#0b1928}
+.brand{font-size:15px;font-weight:800;letter-spacing:1px}
+.brand span{color:var(--accent)}
+.sub{font-size:11px;color:var(--muted);margin-top:5px}
+.status{font-size:10px;color:#9bd9c9;text-align:right}
+main{display:grid;grid-template-columns:310px minmax(350px,1fr) 320px;
+ height:calc(100vh - 66px);gap:1px;background:var(--line)}
+.panel{background:var(--panel);overflow-y:auto;padding:15px}
+.map-panel{background:#0b1725;position:relative;min-width:0}
+#map{height:100%;width:100%;background:#142435}
+.section{font-size:11px;color:var(--accent);font-weight:bold;
+ letter-spacing:1.2px;margin:12px 0 9px}
+.card{background:var(--panel2);border:1px solid var(--line);
+ border-radius:8px;padding:12px;margin-bottom:10px}
+label{display:block;font-size:11px;color:var(--muted);margin-bottom:6px}
+select,input,button{width:100%;padding:9px;border-radius:5px;
+ border:1px solid var(--line);background:#0b1928;color:var(--text);font-size:12px}
+button{cursor:pointer;font-weight:bold}
+button.primary{background:var(--accent);color:#06251e;border:0}
+button.secondary{background:#203b54}
+button:disabled{opacity:.5;cursor:not-allowed}
+.factor{display:flex;justify-content:space-between;gap:10px;
+ padding:8px 0;border-bottom:1px solid #26394a;font-size:11px}
+.factor small{display:block;color:var(--muted);margin-top:3px}
+.tag{font-size:9px;padding:3px 5px;border-radius:4px;
+ background:#20394d;color:#a8c2d4;white-space:nowrap;height:max-content}
+.tag.ok{color:#70e0ba;background:#123d36}
+.tag.bad{color:#ffb49f;background:#4a2929}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.kpi{background:#14283b;border:1px solid var(--line);padding:11px;border-radius:7px}
+.kpi strong{display:block;font-size:20px;margin-top:7px}
+.kpi span{font-size:10px;color:var(--muted)}
+.chartbox{height:190px;margin-top:10px}
+.legend{position:absolute;bottom:18px;left:18px;z-index:500;
+ background:#101f30ed;padding:12px;border:1px solid var(--line);
+ border-radius:7px;font-size:11px}
+.legend div{margin:5px 0}
+.swatch{display:inline-block;width:11px;height:11px;margin-right:7px;border-radius:2px}
+#progress{height:5px;background:#26394a;border-radius:8px;overflow:hidden}
+#bar{height:100%;width:0;background:var(--accent);transition:width .3s}
+#message{font-size:11px;color:var(--muted);line-height:1.5}
+.note{font-size:10px;line-height:1.5;color:var(--muted)}
+select:disabled{opacity:.45}
+footer{font-size:10px;color:var(--muted);padding:12px 0}
+.map-label{background:#101f30;color:#eaf2f8;border:1px solid #35c5a1;
+ padding:5px 8px;border-radius:4px;font-size:11px}
+@media(max-width:1000px){
+ main{grid-template-columns:270px 1fr;height:auto;min-height:calc(100vh - 66px)}
+ .right{grid-column:1/-1}.map-panel{height:600px}
+}
+@media(max-width:650px){
+ main{display:flex;flex-direction:column}
+ .map-panel{height:480px;order:0}.left{order:1}.right{order:2}
+}
+</style>
+</head>
+
+<body>
+<header>
+ <div>
+  <div class="brand">GBoS <span>GEOAI</span> | GROUNDWATER INTELLIGENCE</div>
+  <div class="sub">Administrative-area groundwater potential screening • The Gambia</div>
+ </div>
+ <div class="status" id="headerStatus">LOADING ADMINISTRATIVE BOUNDARIES</div>
+</header>
+
+<main>
+
+<!-- CONTROL CENTRE -->
+<section class="panel left">
+
+ <div class="section">01 / CONTROL CENTRE</div>
+
+ <div class="card">
+  <label>Administrative boundary source</label>
+  <div class="note">Gambia Census Enumeration Area GeoJSON</div>
+  <div id="boundaryStatus" class="note" style="margin-top:8px">Loading boundary data...</div>
+ </div>
+
+ <div class="section">02 / GEOGRAPHIC SELECTION</div>
+
+ <div class="card">
+  <label>Region</label>
+  <select id="region">
+   <option value="">Loading regions...</option>
+  </select>
+
+  <label style="margin-top:12px">Local Government Area</label>
+  <select id="lga" disabled>
+   <option value="">All LGAs</option>
+  </select>
+
+  <label style="margin-top:12px">District</label>
+  <select id="district" disabled>
+   <option value="">All districts</option>
+  </select>
+
+  <label style="margin-top:12px">Ward</label>
+  <select id="ward" disabled>
+   <option value="">All wards</option>
+  </select>
+
+  <div style="height:12px"></div>
+  <button class="secondary" id="zoomBtn" disabled>ZOOM TO SELECTED AREA</button>
+  <div class="note" id="selectedInfo" style="margin-top:9px">
+   Select an administrative area.
+  </div>
+ </div>
+
+ <div class="section">03 / ANALYSIS SETTINGS</div>
+
+ <div class="card">
+  <label>Rainfall reference start year</label>
+  <select id="startYear">
+   <option>2010</option><option>2012</option><option>2015</option>
+  </select>
+
+  <label style="margin-top:10px">Rainfall reference end year</label>
+  <select id="endYear">
+   <option>2020</option><option>2022</option><option selected>2024</option>
+  </select>
+
+  <label style="margin-top:10px">Sample grid density</label>
+  <select id="density">
+   <option value="5">Low — 5 × 12</option>
+   <option value="7" selected>Medium — 7 × 16</option>
+   <option value="9">High — 9 × 20</option>
+  </select>
+ </div>
+
+ <div class="section">04 / CONDITIONING FACTORS</div>
+
+ <div class="card" id="factorList">
+  <div class="factor"><div>Elevation / DEM<small>Lower values preferred</small></div><span class="tag">PENDING</span></div>
+  <div class="factor"><div>Slope<small>Lower values preferred</small></div><span class="tag">PENDING</span></div>
+  <div class="factor"><div>Mean annual rainfall<small>Higher values preferred</small></div><span class="tag">PENDING</span></div>
+  <div class="factor"><div>Soil sand content<small>Higher values preferred</small></div><span class="tag bad">UNAVAILABLE</span></div>
+  <div class="factor"><div>Flow accumulation<small>Higher values preferred</small></div><span class="tag">PROXY</span></div>
+  <div class="factor"><div>Drainage proximity<small>Lower distance preferred</small></div><span class="tag">PROXY</span></div>
+  <div class="factor"><div>LULC suitability<small>Higher values preferred</small></div><span class="tag bad">UNAVAILABLE</span></div>
+  <div class="factor"><div>Surface water occurrence<small>Higher values preferred</small></div><span class="tag bad">UNAVAILABLE</span></div>
+  <div class="factor"><div>Drainage density<small>Higher values preferred</small></div><span class="tag">PROXY</span></div>
+  <div class="factor"><div>Lineament density<small>Higher values preferred</small></div><span class="tag">TERRAIN PROXY</span></div>
+ </div>
+
+ <div class="section">05 / PROCESSING</div>
+ <div class="card">
+  <button class="primary" id="runBtn" disabled>RUN AUTOMATIC EXTRACTION</button>
+  <div style="height:8px"></div>
+  <button class="secondary" id="resetBtn">RESET ANALYSIS</button>
+  <div style="height:12px"></div>
+  <div id="progress"><div id="bar"></div></div>
+  <p id="message">Loading administrative data...</p>
+ </div>
+
+ <div class="section">06 / MAP LAYERS</div>
+ <div class="card">
+  <label><input type="checkbox" id="showPoints" checked style="width:auto"> Sample points</label>
+  <label><input type="checkbox" id="showBoundary" checked style="width:auto"> Selected EA boundary</label>
+  <label><input type="checkbox" id="showGWPI" checked style="width:auto"> GWPI sample display</label>
+ </div>
+
+ <footer>
+  Produced by Ansu Singhateh<br>
+  GIS Analyst | GIS / Cartography Unit | Gambia Bureau of Statistics
+ </footer>
+</section>
+
+<!-- MAP -->
+<section class="map-panel">
+ <div id="map"></div>
+ <div class="legend">
+  <b>GROUNDWATER POTENTIAL</b>
+  <div><i class="swatch" style="background:#a50026"></i>Very low</div>
+  <div><i class="swatch" style="background:#f46d43"></i>Low</div>
+  <div><i class="swatch" style="background:#fee08b"></i>Moderate</div>
+  <div><i class="swatch" style="background:#a6d96a"></i>High</div>
+  <div><i class="swatch" style="background:#006837"></i>Very high</div>
+ </div>
+</section>
+
+<!-- ANALYTICS -->
+<section class="panel right">
+ <div class="section">07 / ANALYTICS OVERVIEW</div>
+ <div class="kpis">
+  <div class="kpi"><span>Sample locations</span><strong id="kSamples">0</strong></div>
+  <div class="kpi"><span>Mean GWPI</span><strong id="kMean">—</strong></div>
+  <div class="kpi"><span>Mean elevation</span><strong id="kElevation">—</strong></div>
+  <div class="kpi"><span>Mean rainfall</span><strong id="kRain">—</strong></div>
+ </div>
+
+ <div class="section">08 / SELECTED AREA</div>
+ <div class="card note" id="areaAnalytics">No area selected.</div>
+
+ <div class="section">09 / FACTOR AVAILABILITY</div>
+ <div class="card note" id="availability">Waiting for analysis.</div>
+
+ <div class="section">10 / POTENTIAL ZONE DISTRIBUTION</div>
+ <div class="card chartbox"><canvas id="zoneChart"></canvas></div>
+
+ <div class="section">11 / FACTOR CONTRIBUTION</div>
+ <div class="card chartbox"><canvas id="factorChart"></canvas></div>
+
+ <div class="section">12 / EXPORT RESULTS</div>
+ <div class="card">
+  <button class="secondary" id="csvBtn" disabled>DOWNLOAD SAMPLE CSV</button>
+  <div style="height:8px"></div>
+  <button class="secondary" id="geoBtn" disabled>DOWNLOAD GWPI GEOJSON</button>
+ </div>
+
+ <div class="section">METHODOLOGY & LIMITATIONS</div>
+ <div class="card note">
+  Administrative boundaries are loaded from the Gambia Census EA GeoJSON.
+  Region, LGA, district and ward filters are generated from its attributes.
+  <br><br>
+  Elevation and rainfall are retrieved from public web services.
+  Slope is estimated from neighbouring sample elevations.
+  Flow accumulation, drainage proximity, drainage density and
+  terrain-edge density are simplified spatial proxies.
+  <br><br>
+  Soil sand, LULC and surface-water occurrence are not included
+  until reliable public raster data can be retrieved.
+  <br><br>
+  The result is a preliminary screening index, not a validated
+  aquifer map or borehole-yield prediction.
+ </div>
+</section>
+</main>
+
+<script>
+// ==========================================================
+// 1. CONFIGURATION
+// ==========================================================
+
+const EA_URLS=[
+ 'https://raw.githubusercontent.com/silkysingz94-oss/Agricultural-Land-Cover1/main/Census_EAs_Geo.json',
+ 'https://cdn.jsdelivr.net/gh/silkysingz94-oss/Agricultural-Land-Cover1@main/Census_EAs_Geo.json'
+];
+
+const $=id=>document.getElementById(id);
+
+const map=L.map('map',{zoomControl:true}).setView([13.43,-15.55],8);
+
+const baseLayers={
+ 'Street':L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  maxZoom:19,attribution:'© OpenStreetMap contributors'
+ }),
+ 'Satellite':L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
+  maxZoom:19,attribution:'Tiles © Esri'
+ }),
+ 'Terrain':L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{
+  maxZoom:17,attribution:'© OpenTopoMap'
+ })
+};
+
+baseLayers.Street.addTo(map);
+L.control.layers(baseLayers,null,{collapsed:true}).addTo(map);
+
+let allFeatures=[];
+let selectedFeatures=[];
+let selectedGeometry=null;
+let boundaryLayer=null;
+let pointLayer=L.layerGroup().addTo(map);
+let samples=[];
+let zoneChart=null;
+let factorChart=null;
+let currentWeights=[];
+let currentBoundaryLoaded=false;
+
+const colors=['#a50026','#f46d43','#fee08b','#a6d96a','#006837'];
+const zoneNames=['Very low','Low','Moderate','High','Very high'];
+
+// ==========================================================
+// 2. GENERAL UTILITIES
+// ==========================================================
+
+function status(message,pct){
+ $('message').textContent=message;
+ $('bar').style.width=(pct||0)+'%';
+ $('headerStatus').textContent=message.toUpperCase().slice(0,48);
+}
+
+function fmt(v){
+ return Number.isFinite(v)?Number(v).toFixed(2):'—';
+}
+
+function mean(arr){
+ const a=arr.filter(Number.isFinite);
+ return a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+}
+
+function normalizeName(v){
+ return String(v??'').trim().toLowerCase().replace(/\s+/g,' ');
+}
+
+function uniqueValues(features,field){
+ return [...new Set(features.map(f=>f.properties?.[field])
+  .filter(v=>v!==null&&v!==undefined&&String(v).trim()!=='')
+  .map(v=>String(v).trim()))].sort((a,b)=>a.localeCompare(b));
+}
+
+function fillSelect(selectId,values,placeholder){
+ const select=$(selectId);
+ select.innerHTML='';
+ const first=document.createElement('option');
+ first.value='';
+ first.textContent=placeholder;
+ select.appendChild(first);
+ values.forEach(v=>{
+  const op=document.createElement('option');
+  op.value=v;
+  op.textContent=v;
+  select.appendChild(op);
+ });
+ select.disabled=values.length===0;
+}
+
+function getField(properties,candidates){
+ const keys=Object.keys(properties||{});
+ for(const candidate of candidates){
+  const match=keys.find(k=>k.toLowerCase()===candidate.toLowerCase());
+  if(match)return match;
+ }
+ return null;
+}
+
+// ==========================================================
+// 3. DETECT ADMINISTRATIVE ATTRIBUTES
+// ==========================================================
+
+let FIELDS={};
+
+function detectFields(feature){
+ const p=feature.properties||{};
+ FIELDS={
+  region:getField(p,['region','regionname','region_name','rconame','RCO']),
+  lga:getField(p,['lganame','lga_name','lga','lgname']),
+  district:getField(p,['distname','district','districtname','district_name']),
+  ward:getField(p,['wardname','ward','ward_name']),
+  ea:getField(p,['eaname','feacode','ea_code','ea','feacode'])
+ };
+
+ // Use RCO as region when no explicit region-name field exists.
+ if(!FIELDS.region){
+  FIELDS.region=getField(p,['RCO','regioncode','region_code']);
+ }
+ return FIELDS;
+}
+
+function regionDisplay(value){
+ // Known region codes can be displayed with their common names.
+ // If the source contains named regions, preserve the original names.
+ const mapCodes={
+  '1':'Banjul',
+  '2':'Kanifing',
+  '3':'Brikama / West Coast',
+  '4':'Mansakonko / Lower River',
+  '5':'Kerewan / North Bank',
+  '6':'Kuntaur / Central River North',
+  '7':'Janjanbureh / Central River South',
+  '8':'Basse / Upper River'
+ };
+ return mapCodes[String(value)]||String(value);
+}
+
+// ==========================================================
+// 4. LOAD CENSUS EA GEOJSON
+// ==========================================================
+
+async function loadAdministrativeData(){
+ status('Loading Gambia EA GeoJSON...',3);
+ let data=null,lastError=null;
+
+ for(const url of EA_URLS){
+  try{
+   const response=await fetch(url,{cache:'no-store'});
+   if(!response.ok)throw new Error('HTTP '+response.status);
+   data=await response.json();
+   if(!data.features||!data.features.length){
+    throw new Error('GeoJSON has no features');
+   }
+   break;
+  }catch(e){
+   console.warn('Boundary source failed:',url,e);
+   lastError=e;
+  }
+ }
+
+ if(!data){
+  throw new Error('Could not load Census_EAs_Geo.json. '+(lastError?.message||'Check internet or GitHub access.'));
+ }
+
+ allFeatures=data.features.filter(f=>f.geometry&&f.properties);
+ if(!allFeatures.length)throw new Error('No valid EA polygons found.');
+
+ detectFields(allFeatures[0]);
+
+ if(!FIELDS.region||!FIELDS.lga||!FIELDS.district||!FIELDS.ward){
+  console.log('GeoJSON property example:',allFeatures[0].properties);
+  throw new Error('Required attributes not detected. Expected RCO, lganame, distname and wardname. Check the browser console for the available fields.');
+ }
+
+ currentBoundaryLoaded=true;
+
+ $('boundaryStatus').innerHTML=
+  '<span style="color:#70e0ba">BOUNDARY LOADED</span><br>'+
+  allFeatures.length.toLocaleString()+' EA polygons retrieved';
+
+ $('runBtn').disabled=false;
+
+ populateRegions();
+
+ // National boundary view.
+ selectedFeatures=allFeatures;
+ renderSelectedBoundary();
+ updateSelectionInfo();
+
+ status('Administrative boundaries loaded',100);
+}
+
+// ==========================================================
+// 5. ADMINISTRATIVE FILTERS
+// ==========================================================
+
+function populateRegions(){
+ const values=uniqueValues(allFeatures,FIELDS.region);
+ fillSelect('region',values,'All regions — National');
+ fillSelect('lga',uniqueValues(allFeatures,FIELDS.lga),'All LGAs');
+ fillSelect('district',uniqueValues(allFeatures,FIELDS.district),'All districts');
+ fillSelect('ward',uniqueValues(allFeatures,FIELDS.ward),'All wards');
+}
+
+function updateLgas(){
+ const region=$('region').value;
+ const subset=region?
+  allFeatures.filter(f=>String(f.properties[FIELDS.region])===region):
+  allFeatures;
+ fillSelect('lga',uniqueValues(subset,FIELDS.lga),'All LGAs');
+ updateDistricts();
+}
+
+function updateDistricts(){
+ const region=$('region').value;
+ const lga=$('lga').value;
+ let subset=allFeatures;
+
+ if(region)subset=subset.filter(f=>String(f.properties[FIELDS.region])===region);
+ if(lga)subset=subset.filter(f=>String(f.properties[FIELDS.lga])===lga);
+
+ fillSelect('district',uniqueValues(subset,FIELDS.district),'All districts');
+ updateWards();
+}
+
+function updateWards(){
+ const region=$('region').value;
+ const lga=$('lga').value;
+ const district=$('district').value;
+ let subset=allFeatures;
+
+ if(region)subset=subset.filter(f=>String(f.properties[FIELDS.region])===region);
+ if(lga)subset=subset.filter(f=>String(f.properties[FIELDS.lga])===lga);
+ if(district)subset=subset.filter(f=>String(f.properties[FIELDS.district])===district);
+
+ fillSelect('ward',uniqueValues(subset,FIELDS.ward),'All wards');
+ applyAdministrativeSelection();
+}
+
+function applyAdministrativeSelection(){
+ const region=$('region').value;
+ const lga=$('lga').value;
+ const district=$('district').value;
+ const ward=$('ward').value;
+
+ selectedFeatures=allFeatures.filter(f=>{
+  const p=f.properties;
+  if(region&&String(p[FIELDS.region])!==region)return false;
+  if(lga&&String(p[FIELDS.lga])!==lga)return false;
+  if(district&&String(p[FIELDS.district])!==district)return false;
+  if(ward&&String(p[FIELDS.ward])!==ward)return false;
+  return true;
+ });
+
+ renderSelectedBoundary();
+ updateSelectionInfo();
+ clearAnalysis();
+}
+
+function selectedAreaName(){
+ const parts=[
+  $('region').value?regionDisplay($('region').value):'The Gambia',
+  $('lga').value,
+  $('district').value,
+  $('ward').value
+ ].filter(Boolean);
+ return parts.join(' / ');
+}
+
+function updateSelectionInfo(){
+ const name=selectedAreaName();
+ $('selectedInfo').innerHTML=
+  '<b>Selected:</b> '+name+'<br>'+
+  '<b>EA polygons:</b> '+selectedFeatures.length.toLocaleString();
+
+ $('areaAnalytics').innerHTML=
+  '<b>Study area:</b> '+name+'<br>'+
+  '<b>Selected EA polygons:</b> '+selectedFeatures.length.toLocaleString()+
+  '<br><b>Processing extent:</b> Selected boundary only';
+}
+
+// ==========================================================
+// 6. DRAW SELECTED BOUNDARY
+// ==========================================================
+
+function renderSelectedBoundary(){
+ if(boundaryLayer)map.removeLayer(boundaryLayer);
+
+ if(!selectedFeatures.length){
+  boundaryLayer=null;
+  return;
+ }
+
+ boundaryLayer=L.geoJSON({
+  type:'FeatureCollection',
+  features:selectedFeatures
+ },{
+  style:{
+   color:'#35c5a1',
+   weight:1,
+   opacity:.8,
+   fillColor:'#35c5a1',
+   fillOpacity:.035
+  }
+ }).addTo(map);
+
+ if($('showBoundary').checked)boundaryLayer.addTo(map);
+ else map.removeLayer(boundaryLayer);
+
+ const bounds=boundaryLayer.getBounds();
+ if(bounds.isValid())map.fitBounds(bounds,{padding:[20,20],maxZoom:12});
+}
+
+function zoomToSelected(){
+ if(boundaryLayer&&boundaryLayer.getBounds().isValid()){
+  map.fitBounds(boundaryLayer.getBounds(),{padding:[20,20],maxZoom:13});
+ }
+}
+
+$('region').addEventListener('change',updateLgas);
+$('lga').addEventListener('change',()=>{
+ updateDistricts();
+ applyAdministrativeSelection();
+});
+$('district').addEventListener('change',()=>{
+ updateWards();
+});
+$('ward').addEventListener('change',applyAdministrativeSelection);
+$('zoomBtn').addEventListener('click',zoomToSelected);
+
+// ==========================================================
+// 7. GEOMETRY / SELECTED AREA GRID
+// ==========================================================
+
+function insideRing(lon,lat,ring){
+ let inside=false;
+ for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+  const xi=ring[i][0],yi=ring[i][1];
+  const xj=ring[j][0],yj=ring[j][1];
+  const intersect=((yi>lat)!==(yj>lat))&&
+   (lon<(xj-xi)*(lat-yi)/(yj-yi+1e-15)+xi);
+  if(intersect)inside=!inside;
+ }
+ return inside;
+}
+
+function insideGeometry(lon,lat,geometry){
+ if(!geometry)return false;
+
+ if(geometry.type==='Polygon'){
+  const rings=geometry.coordinates;
+  return insideRing(lon,lat,rings[0])&&
+   !rings.slice(1).some(r=>insideRing(lon,lat,r));
+ }
+
+ if(geometry.type==='MultiPolygon'){
+  return geometry.coordinates.some(poly=>
+   insideRing(lon,lat,poly[0])&&
+   !poly.slice(1).some(r=>insideRing(lon,lat,r))
+  );
+ }
+ return false;
+}
+
+function pointInsideSelected(lon,lat){
+ return selectedFeatures.some(f=>insideGeometry(lon,lat,f.geometry));
+}
+
+function makeGrid(){
+ if(!selectedFeatures.length)throw new Error('No selected EA polygons.');
+
+ const bounds=boundaryLayer.getBounds();
+ const west=bounds.getWest(),east=bounds.getEast();
+ const south=bounds.getSouth(),north=bounds.getNorth();
+
+ const density=Number($('density').value);
+ const rows=density*2;
+ const cols=density+3;
+ const points=[];
+
+ for(let r=0;r<rows;r++){
+  for(let c=0;c<cols;c++){
+   const lat=south+(north-south)*(r+.5)/rows;
+   const lon=west+(east-west)*(c+.5)/cols;
+
+   if(pointInsideSelected(lon,lat)){
+    points.push({id:points.length,lat,lon});
+   }
+  }
+ }
+ return points;
+}
+
+// ==========================================================
+// 8. PUBLIC ELEVATION API
+// ==========================================================
+
+async function retrieveElevation(points){
+ const values=[];
+
+ for(let i=0;i<points.length;i+=100){
+  const chunk=points.slice(i,i+100);
+  const locations=chunk.map(p=>
+   p.lat.toFixed(5)+','+p.lon.toFixed(5)
+  ).join('|');
+
+  const url='https://api.opentopodata.org/v1/mapzen?locations='+
+   encodeURIComponent(locations);
+
+  const response=await fetch(url);
+  if(!response.ok)throw new Error('Elevation service HTTP '+response.status);
+
+  const json=await response.json();
+  if(json.status!=='OK')throw new Error('Elevation service returned an error');
+
+  values.push(...json.results.map(x=>x.elevation));
+
+  status('Retrieving DEM samples '+Math.min(i+100,points.length)+'/'+points.length,
+   10+30*Math.min(i+100,points.length)/points.length);
+
+  if(i+100<points.length){
+   await new Promise(resolve=>setTimeout(resolve,1100));
+  }
+ }
+ return values;
+}
+
+// ==========================================================
+// 9. PUBLIC RAINFALL API
+// ==========================================================
+
+async function retrieveRainfall(points){
+ const start=$('startYear').value+'-01-01';
+ const end=$('endYear').value+'-12-31';
+ const values=[];
+
+ for(let i=0;i<points.length;i+=10){
+  const chunk=points.slice(i,i+10);
+  const lat=chunk.map(p=>p.lat.toFixed(4)).join(',');
+  const lon=chunk.map(p=>p.lon.toFixed(4)).join(',');
+
+  const url='https://archive-api.open-meteo.com/v1/archive?latitude='+
+   encodeURIComponent(lat)+'&longitude='+encodeURIComponent(lon)+
+   '&start_date='+start+'&end_date='+end+
+   '&daily=precipitation_sum&timezone=Africa%2FBanjul';
+
+  const response=await fetch(url);
+  if(!response.ok)throw new Error('Rainfall service HTTP '+response.status);
+
+  const data=await response.json();
+  const locations=Array.isArray(data)?data:[data];
+
+  locations.forEach(loc=>{
+   const daily=loc.daily;
+   if(!daily||!daily.time||!daily.precipitation_sum){
+    values.push(null);
+    return;
+   }
+
+   const totals={};
+   daily.time.forEach((date,j)=>{
+    const year=date.substring(0,4);
+    const val=daily.precipitation_sum[j];
+    if(val!==null){
+     totals[year]=(totals[year]||0)+val;
+    }
+   });
+
+   const annual=Object.values(totals);
+   values.push(annual.length?annual.reduce((a,b)=>a+b,0)/annual.length:null);
+  });
+
+  status('Retrieving rainfall '+Math.min(i+10,points.length)+'/'+points.length,
+   42+25*Math.min(i+10,points.length)/points.length);
+ }
+ return values;
+}
+
+// ==========================================================
+// 10. DERIVED TERRAIN PROXIES
+// ==========================================================
+
+function haversine(a,b){
+ const R=6371,rad=Math.PI/180;
+ const dLat=(b.lat-a.lat)*rad;
+ const dLon=(b.lon-a.lon)*rad;
+ const q=Math.sin(dLat/2)**2+
+  Math.cos(a.lat*rad)*Math.cos(b.lat*rad)*Math.sin(dLon/2)**2;
+ return 2*R*Math.asin(Math.sqrt(q));
+}
+
+function deriveFactors(points){
+ const n=points.length;
+ const elevations=points.map(p=>p.elevation);
+ const slopes=new Array(n).fill(0);
+ const flow=new Array(n).fill(0);
+ const distance=new Array(n).fill(null);
+ const drainageDensity=new Array(n).fill(0);
+ const lineament=new Array(n).fill(0);
+
+ points.forEach((p,i)=>{
+  const neighbours=points.map((q,j)=>({
+   q,j,d:haversine(p,q)
+  })).filter(x=>x.j!==i&&x.d>0&&x.d<65)
+    .sort((a,b)=>a.d-b.d).slice(0,6);
+
+  const gradients=[];
+  neighbours.forEach(x=>{
+   const dz=Math.abs(p.elevation-x.q.elevation);
+   gradients.push(Math.atan(dz/(x.d*1000||1))*180/Math.PI);
+  });
+
+  slopes[i]=gradients.length?
+   gradients.reduce((a,b)=>a+b,0)/gradients.length:0;
+
+  const lower=neighbours.filter(x=>x.q.elevation<p.elevation);
+  flow[i]=lower.reduce((sum,x)=>sum+1/(x.d||1),0);
+
+  distance[i]=neighbours.length?
+   Math.min(...neighbours.map(x=>x.d))*1000:null;
+
+  drainageDensity[i]=lower.length/(neighbours.length||1);
+
+  lineament[i]=gradients.length?
+   gradients.reduce((a,b)=>a+Math.abs(b-slopes[i]),0)/gradients.length:0;
+ });
+
+ return {slopes,flow,distance,drainageDensity,lineament};
+}
+
+// ==========================================================
+// 11. NORMALISATION AND INDEX
+// ==========================================================
+
+function percentile(values,p){
+ const a=values.filter(Number.isFinite).sort((x,y)=>x-y);
+ if(!a.length)return 0;
+ return a[Math.min(a.length-1,Math.floor((a.length-1)*p))];
+}
+
+function scaleValues(values,invert){
+ const lo=percentile(values,.05);
+ const hi=percentile(values,.95);
+ return values.map(v=>{
+  if(!Number.isFinite(v))return null;
+  const z=Math.max(0,Math.min(1,(v-lo)/(hi-lo||1)));
+  return invert?1-z:z;
+ });
+}
+
+function calculateGWPI(){
+ const factors=[
+  {name:'Elevation',weight:.12,values:scaleValues(samples.map(p=>p.elevation),true)},
+  {name:'Slope',weight:.12,values:scaleValues(samples.map(p=>p.slope),true)},
+  {name:'Rainfall',weight:.20,values:scaleValues(samples.map(p=>p.rainfall),false)},
+  {name:'Flow accumulation proxy',weight:.16,values:scaleValues(samples.map(p=>p.flow),false)},
+  {name:'Drainage proximity proxy',weight:.14,values:scaleValues(samples.map(p=>p.drainageDistance),true)},
+  {name:'Drainage density proxy',weight:.14,values:scaleValues(samples.map(p=>p.drainageDensity),false)},
+  {name:'Terrain-edge proxy',weight:.12,values:scaleValues(samples.map(p=>p.lineament),false)}
+ ];
+
+ const total=factors.reduce((a,f)=>a+f.weight,0);
+
+ samples.forEach((p,i)=>{
+  let score=0,weight=0;
+  factors.forEach(f=>{
+   const v=f.values[i];
+   if(Number.isFinite(v)){
+    score+=v*f.weight;
+    weight+=f.weight;
+   }
+  });
+  p.gwpi=weight?score/weight:null;
+  p.zone=p.gwpi===null?0:Math.min(5,Math.floor(p.gwpi*5)+1);
+ });
+
+ return factors;
+}
+
+// ==========================================================
+// 12. MAP DISPLAY
+// ==========================================================
+
+function drawSamples(){
+ pointLayer.clearLayers();
+
+ samples.forEach(p=>{
+  if(!Number.isFinite(p.gwpi))return;
+
+  const marker=L.circleMarker([p.lat,p.lon],{
+   radius:7,color:'#ffffff',weight:1,
+   fillColor:colors[p.zone-1],fillOpacity:.92
+  });
+
+  marker.bindPopup(
+   '<b>Sample '+(p.id+1)+'</b><br>'+
+   'Elevation: '+fmt(p.elevation)+' m<br>'+
+   'Slope: '+fmt(p.slope)+'°<br>'+
+   'Rainfall: '+fmt(p.rainfall)+' mm/year<br>'+
+   'GWPI: '+fmt(p.gwpi)+'<br>'+
+   'Potential: '+zoneNames[p.zone-1]
+  );
+  marker.addTo(pointLayer);
+ });
+
+ if(!$('showPoints').checked)map.removeLayer(pointLayer);
+ else pointLayer.addTo(map);
+}
+
+// ==========================================================
+// 13. ANALYTICS
+// ==========================================================
+
+function updateAnalytics(factors){
+ $('kSamples').textContent=samples.length;
+ $('kMean').textContent=fmt(mean(samples.map(p=>p.gwpi)));
+ $('kElevation').textContent=fmt(mean(samples.map(p=>p.elevation)))+' m';
+ $('kRain').textContent=fmt(mean(samples.map(p=>p.rainfall)))+' mm';
+
+ const counts=[1,2,3,4,5].map(z=>
+  samples.filter(p=>p.zone===z).length
+ );
+
+ if(zoneChart)zoneChart.destroy();
+ zoneChart=new Chart($('zoneChart'),{
+  type:'bar',
+  data:{
+   labels:zoneNames,
+   datasets:[{
+    label:'Sample locations',
+    data:counts,
+    backgroundColor:colors
+   }]
+  },
+  options:{
+   responsive:true,maintainAspectRatio:false,
+   plugins:{legend:{display:false}},
+   scales:{
+    y:{beginAtZero:true,ticks:{color:'#b8c9d8'}},
+    x:{ticks:{color:'#b8c9d8'}}
+   }
+  }
+ });
+
+ if(factorChart)factorChart.destroy();
+ factorChart=new Chart($('factorChart'),{
+  type:'bar',
+  data:{
+   labels:factors.map(f=>f.name),
+   datasets:[{
+    label:'Illustrative weight (%)',
+    data:factors.map(f=>f.weight*100),
+    backgroundColor:'#35c5a1'
+   }]
+  },
+  options:{
+   indexAxis:'y',responsive:true,maintainAspectRatio:false,
+   plugins:{legend:{display:false}},
+   scales:{
+    x:{beginAtZero:true,ticks:{color:'#b8c9d8'}},
+    y:{ticks:{color:'#b8c9d8'}}
+   }
+  }
+ });
+
+ $('availability').innerHTML=
+  '<b>Retrieved:</b> Elevation, rainfall<br>'+
+  '<b>Derived:</b> Slope<br>'+
+  '<b>Proxies:</b> Flow, drainage proximity, drainage density, terrain edges<br>'+
+  '<b>Unavailable:</b> Soil sand, LULC, surface-water occurrence<br>'+
+  '<b>GWPI:</b> Calculated using available factors only.';
+}
+
+// ==========================================================
+// 14. FACTOR STATUS
+// ==========================================================
+
+function setFactorStatus(name,text,ok=true){
+ const rows=[...$('factorList').children];
+ const row=rows.find(r=>r.textContent.toLowerCase().includes(name.toLowerCase()));
+ if(row){
+  const tag=row.querySelector('.tag');
+  tag.textContent=text;
+  tag.className='tag '+(ok?'ok':'bad');
+ }
+}
+
+function resetFactorStatuses(){
+ const rows=[...$('factorList').children];
+ rows.forEach((row,i)=>{
+  const tag=row.querySelector('.tag');
+  const states=[
+   ['PENDING',''],['PENDING',''],['PENDING',''],
+   ['UNAVAILABLE','bad'],['PROXY',''],['PROXY',''],
+   ['UNAVAILABLE','bad'],['UNAVAILABLE','bad'],
+   ['PROXY',''],['TERRAIN PROXY','']
+  ];
+  tag.textContent=states[i][0];
+  tag.className='tag '+states[i][1];
+ });
+}
+
+// ==========================================================
+// 15. EXPORTS
+// ==========================================================
+
+function downloadFile(name,content,type){
+ const blob=new Blob([content],{type});
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement('a');
+ a.href=url;
+ a.download=name;
+ a.click();
+ URL.revokeObjectURL(url);
+}
+
+function exportCSV(){
+ const fields=[
+  'sample_id','latitude','longitude','elevation_m','slope_degrees',
+  'rainfall_mm_year','flow_proxy','drainage_distance_proxy_m',
+  'drainage_density_proxy','terrain_edge_proxy','GWPI','potential_class'
+ ];
+
+ const lines=[fields.join(',')];
+
+ samples.forEach(p=>{
+  lines.push([
+   p.id,p.lat,p.lon,p.elevation,p.slope,p.rainfall,
+   p.flow,p.drainageDistance,p.drainageDensity,
+   p.lineament,p.gwpi,zoneNames[p.zone-1]
+  ].join(','));
+ });
+
+ downloadFile(
+  'Gambia_GWPI_Selected_Area.csv',
+  lines.join('\n'),
+  'text/csv'
+ );
+}
+
+function exportGeoJSON(){
+ const geojson={
+  type:'FeatureCollection',
+  features:samples.filter(p=>Number.isFinite(p.gwpi)).map(p=>({
+   type:'Feature',
+   geometry:{type:'Point',coordinates:[p.lon,p.lat]},
+   properties:{
+    sample_id:p.id,
+    selected_area:selectedAreaName(),
+    elevation_m:p.elevation,
+    slope_degrees:p.slope,
+    rainfall_mm_year:p.rainfall,
+    flow_proxy:p.flow,
+    drainage_distance_proxy_m:p.drainageDistance,
+    drainage_density_proxy:p.drainageDensity,
+    terrain_edge_proxy:p.lineament,
+    GWPI:p.gwpi,
+    potential_class:zoneNames[p.zone-1]
+   }
+  }))
+ };
+
+ downloadFile(
+  'Gambia_GWPI_Selected_Area.geojson',
+  JSON.stringify(geojson,null,2),
+  'application/geo+json'
+ );
+}
+
+// ==========================================================
+// 16. PROCESSING
+// ==========================================================
+
+async function runAnalysis(){
+ if(!currentBoundaryLoaded){
+  alert('Administrative boundary data is not loaded.');
+  return;
+ }
+ if(!selectedFeatures.length){
+  alert('Select a valid administrative area.');
+  return;
+ }
+
+ $('runBtn').disabled=true;
+ $('csvBtn').disabled=true;
+ $('geoBtn').disabled=true;
+
+ try{
+  status('Creating selected-area grid...',5);
+  samples=makeGrid();
+
+  if(samples.length<5){
+   throw new Error('Too few sample points in this selected area. Increase the grid density.');
+  }
+
+  status('Retrieving elevation samples...',10);
+  const elevations=await retrieveElevation(samples);
+  samples.forEach((p,i)=>p.elevation=elevations[i]);
+  setFactorStatus('Elevation','LOADED');
+
+  status('Retrieving historical rainfall...',42);
+  const rainfall=await retrieveRainfall(samples);
+  samples.forEach((p,i)=>p.rainfall=rainfall[i]);
+  setFactorStatus('Mean annual rainfall','LOADED');
+
+  status('Deriving terrain factors...',72);
+  const derived=deriveFactors(samples);
+
+  samples.forEach((p,i)=>{
+   p.slope=derived.slopes[i];
+   p.flow=derived.flow[i];
+   p.drainageDistance=derived.distance[i];
+   p.drainageDensity=derived.drainageDensity[i];
+   p.lineament=derived.lineament[i];
+  });
+
+  setFactorStatus('Slope','DERIVED');
+  setFactorStatus('Flow accumulation','PROXY');
+  setFactorStatus('Drainage proximity','PROXY');
+  setFactorStatus('Drainage density','PROXY');
+  setFactorStatus('Lineament density','TERRAIN PROXY');
+
+  status('Calculating groundwater potential index...',88);
+  currentWeights=calculateGWPI();
+
+  drawSamples();
+  updateAnalytics(currentWeights);
+
+  $('csvBtn').disabled=false;
+  $('geoBtn').disabled=false;
+
+  status('Selected-area analysis complete',100);
+
+ }catch(error){
+  console.error(error);
+  status('Analysis error',0);
+  $('message').textContent=error.message;
+ }finally{
+  $('runBtn').disabled=false;
+ }
+}
+
+function clearAnalysis(){
+ samples=[];
+ pointLayer.clearLayers();
+
+ $('kSamples').textContent='0';
+ $('kMean').textContent='—';
+ $('kElevation').textContent='—';
+ $('kRain').textContent='—';
+
+ $('csvBtn').disabled=true;
+ $('geoBtn').disabled=true;
+
+ $('availability').textContent='Run analysis for the selected area.';
+ $('message').textContent='Administrative area changed. Run the analysis again.';
+ $('bar').style.width='0%';
+
+ if(zoneChart){zoneChart.destroy();zoneChart=null}
+ if(factorChart){factorChart.destroy();factorChart=null}
+
+ resetFactorStatuses();
+}
+
+// ==========================================================
+// 17. MAP LAYER CONTROLS
+// ==========================================================
+
+$('showPoints').addEventListener('change',e=>{
+ if(e.target.checked)pointLayer.addTo(map);
+ else map.removeLayer(pointLayer);
+});
+
+$('showBoundary').addEventListener('change',e=>{
+ if(!boundaryLayer)return;
+ if(e.target.checked)boundaryLayer.addTo(map);
+ else map.removeLayer(boundaryLayer);
+});
+
+$('showGWPI').addEventListener('change',e=>{
+ if(e.target.checked)pointLayer.addTo(map);
+ else map.removeLayer(pointLayer);
+});
+
+$('zoomBtn').addEventListener('click',zoomToSelected);
+$('runBtn').addEventListener('click',runAnalysis);
+
+$('resetBtn').addEventListener('click',()=>{
+ $('region').value='';
+ populateRegions();
+ selectedFeatures=allFeatures.slice();
+ renderSelectedBoundary();
+ updateSelectionInfo();
+ clearAnalysis();
+ map.fitBounds(boundaryLayer.getBounds(),{padding:[20,20]});
+});
+
+$('csvBtn').addEventListener('click',exportCSV);
+$('geoBtn').addEventListener('click',exportGeoJSON);
+
+// ==========================================================
+// 18. START APPLICATION
+// ==========================================================
+
+loadAdministrativeData().then(()=>{
+ $('zoomBtn').disabled=false;
+ $('message').textContent='Select a region, LGA, district or ward and run the analysis.';
+ $('headerStatus').textContent='READY • GAMBIA EA BOUNDARIES';
+}).catch(error=>{
+ console.error(error);
+ $('boundaryStatus').innerHTML='<span style="color:#ffb49f">BOUNDARY LOAD FAILED</span><br>'+error.message;
+ $('message').textContent=error.message;
+ $('headerStatus').textContent='ADMINISTRATIVE DATA ERROR';
+});
+</script>
+</body>
+</html>
